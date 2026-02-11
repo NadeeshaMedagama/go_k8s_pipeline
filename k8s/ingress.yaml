@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: go-service-ingress
+  labels:
+    app: go-service
+  annotations:
+    # For nginx ingress controller
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # For cert-manager (if using HTTPS)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: go-service.example.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: go-service
+            port:
+              number: 80
+  # Uncomment for HTTPS support
+  # tls:
+  # - hosts:
+  #   - go-service.example.com
+  #   secretName: go-service-tls
+
