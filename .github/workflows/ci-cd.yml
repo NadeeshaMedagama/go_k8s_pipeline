@@ -3,10 +3,10 @@ name: Go CI/CD Pipeline
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
   workflow_dispatch:
     inputs:
       environment:
@@ -104,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to_k8s == 'true')
 
     steps:
@@ -114,7 +114,7 @@ jobs:
       - name: Identify deployment trigger
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            echo "🚀 Automatic deployment triggered by push to main branch"
+            echo "🚀 Automatic deployment triggered by push to master branch"
             echo "DEPLOYMENT_TYPE=automatic" >> $GITHUB_ENV
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
           else
