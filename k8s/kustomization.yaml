@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+# Optionally include these when needed
+# - namespace.yaml
+# - ingress.yaml
+
+commonLabels:
+  app: go-service
+  managed-by: kustomize
+
+# Image tag can be updated here for different environments
+images:
+  - name: <DOCKERHUB_USERNAME>/go-docker-demo
+    newTag: latest
+
