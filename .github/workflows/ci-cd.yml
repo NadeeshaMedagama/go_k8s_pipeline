@@ -158,9 +158,11 @@ jobs:
       - name: Notify deployment success
         if: success()
         run: |
-          echo "✅ Deployment to ${{ github.event.inputs.environment }} completed successfully!"
+          echo "✅ Deployment to ${{ env.ENVIRONMENT }} completed successfully!"
+          echo "Deployment type: ${{ env.DEPLOYMENT_TYPE }}"
 
       - name: Notify deployment failure
         if: failure()
         run: |
-          echo "❌ Deployment to ${{ github.event.inputs.environment }} failed!"
+          echo "❌ Deployment to ${{ env.ENVIRONMENT }} failed!"
+          echo "Deployment type: ${{ env.DEPLOYMENT_TYPE }}"
