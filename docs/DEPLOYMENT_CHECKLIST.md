@@ -45,7 +45,7 @@ Use this checklist to ensure a smooth deployment of the Go service.
 
 ### Step 3: Push to Repository
 - [ ] Commit changes: `git add . && git commit -m "Deploy v1.0"`
-- [ ] Push to main: `git push origin main`
+- [ ] Push to master: `git push origin master`
 - [ ] Verify GitHub Actions workflow runs successfully
 - [ ] Check Docker Hub for new image
 
