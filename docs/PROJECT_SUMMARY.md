@@ -22,9 +22,9 @@ Your Go service with Kubernetes deployment and CI/CD pipeline is now fully confi
 Enhanced workflow with:
 - **Test Job** - Automated testing with coverage reports
 - **Build and Push Job** - Multi-tag Docker image builds
-- **Deploy to Kubernetes Job** - Optional automated K8s deployment
-- **Manual Trigger** - workflow_dispatch with environment selection
-- **Automatic Triggers** - Runs on push to main and pull requests
+- **Deploy to Kubernetes Job** - Automatic deployment on push to master, or manual trigger with environment selection
+- **Dual Trigger Support** - Both automatic (on push) and manual (workflow_dispatch) deployment
+- **Environment Selection** - Production (automatic) or staging/production (manual)
 
 ### 4. Documentation
 - **README.md** - Comprehensive project documentation (updated)
@@ -78,23 +78,27 @@ curl http://localhost:8080
 
 ## 📋 Deployment Options
 
-### Option 1: Manual Trigger via GitHub Actions (Recommended)
+### Option 1: Automatic Deployment (Push to Master)
+```bash
+git add .
+git commit -m "Deploy application"
+git push origin master
+```
+This automatically triggers the full pipeline including:
+- Tests
+- Docker build and push
+- Kubernetes deployment to production
+
+### Option 2: Manual Trigger via GitHub Actions
 1. Go to GitHub Actions tab
 2. Select "Go CI/CD Pipeline"
 3. Click "Run workflow"
 4. Configure:
    - Branch: `main`
-   - Environment: `production`
+   - Environment: `staging` or `production`
    - Deploy to Kubernetes: `true`
 5. Monitor deployment in Actions tab
 
-### Option 2: Automatic Deployment on Push
-```bash
-git add .
-git commit -m "Deploy application"
-git push origin main
-```
-This triggers the pipeline automatically (without K8s deployment by default).
 
 ### Option 3: Local Kubernetes Deployment
 ```bash
