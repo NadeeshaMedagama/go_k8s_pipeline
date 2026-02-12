@@ -89,18 +89,22 @@ curl http://<EXTERNAL-IP>
 
 ### Step 2: Trigger Pipeline
 
-**Automatic**: Just push to main
+**Automatic deployment**: Just push to master
 ```bash
 git add .
 git commit -m "Initial deployment"
-git push origin main
+git push origin master
+# This will automatically:
+# 1. Run tests
+# 2. Build and push Docker image
+# 3. Deploy to Kubernetes (production)
 ```
 
-**Manual with Kubernetes deployment**:
+**Manual deployment with environment selection**:
 1. Go to GitHub Actions tab
 2. Click "Run workflow"
 3. Select branch: `main`
-4. Environment: `production`
+4. Environment: Choose `staging` or `production`
 5. Deploy to Kubernetes: `true`
 6. Click "Run workflow"
 
@@ -189,7 +193,7 @@ kubectl scale deployment go-service --replicas=5  # Scale
 ./scripts/cleanup.sh                       # Clean up
 
 # CI/CD
-git push origin main                       # Trigger pipeline
+git push origin master                       # Trigger pipeline
 gh workflow run "Go CI/CD Pipeline"        # Manual trigger
 ```
 
