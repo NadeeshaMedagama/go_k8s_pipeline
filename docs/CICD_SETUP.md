@@ -1,18 +1,41 @@
 # CI/CD Setup Guide
 
-This guide explains how to set up and use the GitHub Actions CI/CD pipeline for automated testing, building, and deployment.
+This guide explains how to set up and use the GitHub Actions CI/CD pipelines for automated testing, building, security analysis, and deployment.
 
 ## Overview
 
-The CI/CD pipeline consists of three main jobs:
+The go_k8s_pipeline project includes multiple automated pipelines:
 
+### Main CI/CD Pipeline (`ci-cd.yml`)
 1. **Test**: Runs unit tests and generates coverage reports
 2. **Build and Push**: Builds Docker images and pushes to Docker Hub
-3. **Deploy to Kubernetes**: (Optional) Deploys to Kubernetes cluster
+
+### CodeQL Security Analysis Pipeline (`codeql-analysis.yml`)
+- Automated security scanning using GitHub CodeQL
+- Runs on every push, pull request, and daily at 2:00 AM UTC
+- Detects security vulnerabilities and code quality issues
+
+### Docker Build and Test Pipeline (`docker-test.yml`)
+- Builds Docker images locally for testing
+- Runs container tests to verify functionality
+- Scans images for vulnerabilities using Trivy
+- Runs on every push and pull request
+
+### Release Pipeline (`release.yml`)
+- Triggered by version tags (e.g., `v1.0.0`)
+- Builds binaries for multiple platforms (Linux, macOS, Windows)
+- Creates multi-architecture Docker images
+- Publishes GitHub releases with artifacts
+
+### Dependabot (`dependabot.yml`)
+- Automatically checks for dependency updates weekly
+- Creates pull requests for Go modules, Docker base images, and GitHub Actions
+- Runs every Monday at 2:00 AM UTC
 
 ## Prerequisites
 
-- GitHub repository with this project
+- GitHub repository with this project (go_k8s_pipeline)
+- GitHub Advanced Security enabled (for CodeQL analysis)
 - Docker Hub account
 - (Optional) Kubernetes cluster for deployments
 
@@ -178,8 +201,8 @@ curl -X POST \
 
 **Image tags created**:
 - `latest` (only on master branch)
-- `<branch-name>-<commit-sha>`
-- `<branch-name>`
+- `master-<commit-sha>`
+- `master`
 
 ### Stage 3: Deploy to Kubernetes Job
 
@@ -228,7 +251,7 @@ Edit `.github/workflows/ci-cd.yml`:
 - name: Set up Go
   uses: actions/setup-go@v5
   with:
-    go-version: "1.22"  # Change this
+    go-version: "1.25"  # Change this
 
 # Add more environments
 workflow_dispatch:
@@ -278,7 +301,7 @@ GitHub automatically sends email notifications for workflow failures if enabled 
 - name: Run Trivy vulnerability scanner
   uses: aquasecurity/trivy-action@master
   with:
-    image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/go-docker-demo:latest'
+    image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/go_k8s_pipeline:latest'
     format: 'sarif'
     output: 'trivy-results.sarif'
 
@@ -286,6 +309,147 @@ GitHub automatically sends email notifications for workflow failures if enabled 
   uses: github/codeql-action/upload-sarif@v2
   with:
     sarif_file: 'trivy-results.sarif'
+```
+
+## Additional Pipelines
+
+### CodeQL Security Analysis
+
+The CodeQL pipeline automatically scans your Go code for security vulnerabilities and code quality issues.
+
+**Triggers**:
+- Push to `master` branch
+- Pull requests to `master` branch
+- Daily at 2:00 AM UTC (scheduled scan)
+
+**What it does**:
+- Analyzes Go source code for security vulnerabilities
+- Checks for common coding errors and anti-patterns
+- Uses security-extended queries for comprehensive scanning
+- Uploads results to GitHub Security tab
+
+**Viewing Results**:
+1. Go to **Security** tab in your repository
+2. Click **Code scanning alerts**
+3. Review any detected issues
+4. Click on an alert for details and remediation advice
+
+**Configuration**: `.github/workflows/codeql-analysis.yml`
+
+### Docker Build and Test Pipeline
+
+This pipeline tests Docker builds in isolation and scans for vulnerabilities.
+
+**Triggers**:
+- Push to `master` branch
+- Pull requests to `master` branch
+- Manual workflow dispatch
+
+**What it does**:
+1. Builds Docker image locally (doesn't push)
+2. Starts container and tests HTTP endpoint
+3. Verifies response content
+4. Scans image with Trivy for vulnerabilities
+5. Uploads security results to GitHub Security
+
+**Test Details**:
+```bash
+# Tests performed:
+- HTTP 200 response check
+- Response content verification ("Hello from Go + Docker")
+- Container startup and health check
+```
+
+**Configuration**: `.github/workflows/docker-test.yml`
+
+### Release Pipeline
+
+Creates official releases with binaries and Docker images.
+
+**Triggers**:
+- Push tags matching `v*.*.*` (e.g., `v1.0.0`, `v2.1.3`)
+- Manual workflow dispatch with version input
+
+**Creating a Release**:
+
+```bash
+# Tag your release
+git tag v1.0.0
+git push origin v1.0.0
+
+# Or create annotated tag
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
+
+**What it does**:
+1. **Build Job**: Compiles binaries for multiple platforms
+   - Linux (amd64, arm64)
+   - macOS (amd64, arm64)
+   - Windows (amd64)
+   - Generates SHA256 checksums
+
+2. **Docker Job**: Builds and pushes multi-architecture Docker images
+   - Creates semantic version tags (e.g., `1.0.0`, `1.0`, `1`)
+   - Tags with `latest`
+   - Supports linux/amd64 and linux/arm64
+
+3. **Release Job**: Creates GitHub release
+   - Uploads all binaries and checksums
+   - Generates changelog from git commits
+   - Includes Docker pull instructions
+
+**Docker Image Tags Created**:
+```
+youruser/go_k8s_pipeline:1.0.0
+youruser/go_k8s_pipeline:1.0
+youruser/go_k8s_pipeline:1
+youruser/go_k8s_pipeline:latest
+```
+
+**Configuration**: `.github/workflows/release.yml`
+
+### Dependabot Updates
+
+Automatically creates pull requests for dependency updates.
+
+**Schedule**: Every Monday at 2:00 AM UTC
+
+**What it monitors**:
+1. **Go Modules** (`go.mod`)
+   - Go language version
+   - Third-party packages
+   - Creates PRs with prefix: `chore(go):`
+
+2. **Docker Base Images** (`Dockerfile`)
+   - Base image updates (e.g., golang:1.25-alpine)
+   - Creates PRs with prefix: `chore(docker):`
+
+3. **GitHub Actions** (`.github/workflows/*.yml`)
+   - Action version updates
+   - Creates PRs with prefix: `chore(github-actions):`
+
+**Configuration**: `.github/dependabot.yml`
+
+**Managing Dependabot PRs**:
+1. Review the PR created by Dependabot
+2. Check the changelog and release notes
+3. Ensure CI/CD pipelines pass
+4. Merge if tests pass and changes look good
+
+**Customization**:
+```yaml
+# Adjust schedule
+schedule:
+  interval: "daily"  # or "weekly", "monthly"
+  
+# Limit PRs
+open-pull-requests-limit: 5
+
+# Change labels
+labels:
+  - "dependencies"
+  - "automerge"  # For automated merging
 ```
 
 ## Troubleshooting
@@ -401,7 +565,10 @@ gh run view <run-id> --log
 
 ## Next Steps
 
-- [ ] Set up Dependabot for automatic dependency updates
+- [x] Set up Dependabot for automatic dependency updates
+- [x] Add CodeQL security analysis
+- [x] Add Docker vulnerability scanning with Trivy
+- [x] Implement release pipeline
 - [ ] Add integration tests
 - [ ] Implement canary deployments
 - [ ] Add performance testing
