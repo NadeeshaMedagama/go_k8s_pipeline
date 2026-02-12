@@ -306,7 +306,7 @@ GitHub automatically sends email notifications for workflow failures if enabled 
     output: 'trivy-results.sarif'
 
 - name: Upload Trivy results
-  uses: github/codeql-action/upload-sarif@v2
+  uses: github/codeql-action/upload-sarif@v4
   with:
     sarif_file: 'trivy-results.sarif'
 ```
