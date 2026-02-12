@@ -35,7 +35,10 @@ The service provides a simple HTTP server that responds with a greeting message,
 
 - **Lightweight HTTP Server**: Built with Go's standard `net/http` package
 - **Docker Support**: Multi-stage Dockerfile for minimal image size
-- **CI/CD Automation**: GitHub Actions workflow for automated testing and deployment
+- **CI/CD Automation**: Comprehensive GitHub Actions workflows for automated testing and deployment
+- **Security Analysis**: CodeQL security scanning and Trivy vulnerability detection
+- **Automated Dependency Updates**: Dependabot for Go modules, Docker, and GitHub Actions
+- **Release Pipeline**: Multi-platform binary builds and Docker image publishing
 - **Container Registry Integration**: Automatic Docker Hub image publishing
 - **Production Ready**: Follows Go and Docker best practices
 
@@ -43,7 +46,7 @@ The service provides a simple HTTP server that responds with a greeting message,
 
 Before you begin, ensure you have the following installed:
 
-- **Go**: Version 1.22 or higher ([Download](https://golang.org/dl/))
+- **Go**: Version 1.25 or higher ([Download](https://golang.org/dl/))
 - **Docker**: Latest version ([Download](https://www.docker.com/get-started))
 - **Git**: For version control
 
@@ -101,32 +104,66 @@ docker stop $(docker ps -q --filter ancestor=go-k8s-pipeline:local)
 
 ## 🔄 CI/CD Pipeline
 
-This project uses GitHub Actions for continuous integration and deployment. The pipeline supports multiple trigger methods and can automatically deploy to Kubernetes clusters.
+This project uses GitHub Actions with multiple automated pipelines for continuous integration, security, and deployment.
+
+### Available Pipelines
+
+#### 1. **Main CI/CD Pipeline** (`.github/workflows/ci-cd.yml`)
+- Runs tests with coverage reports
+- Builds and pushes Docker images to Docker Hub
+- Triggers on: push to master, pull requests, manual dispatch
+
+#### 2. **CodeQL Security Analysis** (`.github/workflows/codeql-analysis.yml`)
+- Automated security vulnerability scanning
+- Code quality analysis
+- Triggers on: push to master, pull requests, daily at 2:00 AM UTC
+
+#### 3. **Docker Build and Test** (`.github/workflows/docker-test.yml`)
+- Tests Docker builds without pushing
+- Validates container functionality
+- Scans images with Trivy for vulnerabilities
+- Triggers on: push to master, pull requests, manual dispatch
+
+#### 4. **Release Pipeline** (`.github/workflows/release.yml`)
+- Builds binaries for Linux, macOS, and Windows (amd64/arm64)
+- Creates multi-architecture Docker images
+- Publishes GitHub releases with artifacts
+- Triggers on: version tags (v*.*.*), manual dispatch
+
+#### 5. **Dependabot** (`.github/dependabot.yml`)
+- Automated dependency updates for Go modules, Docker, and GitHub Actions
+- Weekly checks every Monday at 2:00 AM UTC
 
 ### Trigger Methods
 
 #### 1. Automatic Triggers
-- **Push to master**: Automatically runs tests, builds Docker image, and **deploys to Kubernetes** on every push to the `master` branch
-- **Pull Requests**: Automatically runs tests on pull requests targeting the `master` branch (no deployment)
+- **Push to master**: Runs all applicable pipelines (CI/CD, CodeQL, Docker test)
+- **Pull Requests**: Runs tests, security scans, and Docker tests (no deployment)
+- **Version Tags**: Runs release pipeline when you push a tag like `v1.0.0`
 
 #### 2. Manual Trigger (workflow_dispatch)
-To manually trigger the workflow:
+See the [CI/CD Setup Guide](docs/CICD_SETUP.md) for detailed instructions on manual triggers.
 
-1. Go to your repository on GitHub
-2. Click on the **Actions** tab
-3. Select the **Go CI/CD Pipeline** workflow from the left sidebar
-4. Click the **Run workflow** dropdown button
-5. Configure the workflow:
-   - **Branch**: Select the branch to run the workflow on (default: `master`)
-   - **Environment**: Choose `staging` or `production`
-   - **Deploy to Kubernetes**: Toggle `true` to deploy to your K8s cluster
-6. Click **Run workflow**
+### Creating a Release
 
-### Pipeline Jobs
+To create a new release:
+
+```bash
+# Tag your release
+git tag v1.0.0
+git push origin v1.0.0
+
+# The release pipeline will automatically:
+# - Build binaries for all platforms
+# - Create Docker images with semantic versioning
+# - Publish a GitHub release
+```
+
+### Pipeline Jobs (Main CI/CD)
 
 #### 1. **Test Job**
 - Checks out the code
-- Sets up Go 1.22 environment
+- Sets up Go 1.25 environment
 - Caches Go modules for faster builds
 - Runs tests with race detection and coverage
 - Generates and uploads coverage reports
@@ -136,19 +173,10 @@ To manually trigger the workflow:
 - Builds Docker image with BuildKit
 - Pushes to Docker Hub with multiple tags:
   - `latest` (for master branch)
-  - Branch name
-  - Commit SHA
+  - `master-<commit-sha>`
+  - `master`
 - Uses layer caching for faster builds
 
-#### 3. **Deploy to Kubernetes Job**
-- Runs automatically on pushes to master branch
-- Can also be manually triggered with `deploy_to_k8s=true`
-- Configures kubectl with your cluster credentials
-- Updates Kubernetes manifests with correct image tags
-- Applies deployment and service manifests
-- Waits for deployment rollout to complete
-- Reports deployment status
-- Supports both automatic (production) and manual (staging/production) deployments
 
 ### Required Secrets
 
@@ -156,17 +184,21 @@ Configure the following secrets in your GitHub repository settings (Settings →
 
 | Secret Name | Description | Required For |
 |-------------|-------------|--------------|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username | Docker image push |
-| `DOCKERHUB_TOKEN` | Docker Hub access token ([Create one](https://hub.docker.com/settings/security)) | Docker image push |
-| `KUBECONFIG` | Base64-encoded kubeconfig file | Kubernetes deployment |
+| `DOCKERHUB_USERNAME` | Your Docker Hub username | Docker image push, releases |
+| `DOCKERHUB_TOKEN` | Docker Hub access token ([Create one](https://hub.docker.com/settings/security)) | Docker image push, releases |
 
-#### Setting up KUBECONFIG Secret
+### Optional Configuration
+
+For advanced security features, ensure GitHub Advanced Security is enabled in your repository settings to use CodeQL scanning and security alerts.
+
+#### Setting up Docker Hub Token
 
 ```bash
-# Encode your kubeconfig file
-cat ~/.kube/config | base64 -w 0
-
-# Copy the output and add it as KUBECONFIG secret in GitHub
+# 1. Log in to Docker Hub (https://hub.docker.com)
+# 2. Go to Account Settings → Security → Access Tokens
+# 3. Click "New Access Token"
+# 4. Give it a name (e.g., "go_k8s_pipeline CI/CD")
+# 5. Copy the token and add it as DOCKERHUB_TOKEN secret in GitHub
 ```
 
 ### Workflow File
@@ -178,22 +210,31 @@ The CI/CD workflow is defined in `.github/workflows/ci-cd.yml`
 ```
 go_k8s_pipeline/
 ├── .github/
-│   └── workflows/
-│       └── ci-cd.yml          # CI/CD pipeline configuration
-├── k8s/                        # Kubernetes manifests
-│   ├── deployment.yaml         # Deployment configuration
-│   ├── service.yaml            # Service configuration
-│   ├── ingress.yaml            # Ingress configuration (optional)
-│   ├── namespace.yaml          # Namespace configuration (optional)
-│   └── kustomization.yaml      # Kustomize configuration
-├── scripts/                    # Deployment scripts
-│   ├── deploy.sh               # Kubernetes deployment script
-│   ├── rollback.sh             # Rollback script
-│   └── cleanup.sh              # Cleanup script
-├── main.go                     # Main application entry point
-├── go.mod                      # Go module dependencies
-├── Dockerfile                  # Multi-stage Docker build
-└── README.md                   # Project documentation
+│   ├── workflows/
+│   │   ├── ci-cd.yml              # Main CI/CD pipeline
+│   │   ├── codeql-analysis.yml    # Security analysis
+│   │   ├── docker-test.yml        # Docker build and test
+│   │   └── release.yml            # Release pipeline
+│   └── dependabot.yml             # Dependency updates config
+├── k8s/                            # Kubernetes manifests
+│   ├── deployment.yaml             # Deployment configuration
+│   ├── service.yaml                # Service configuration
+│   ├── ingress.yaml                # Ingress configuration (optional)
+│   ├── namespace.yaml              # Namespace configuration (optional)
+│   └── kustomization.yaml          # Kustomize configuration
+├── scripts/                        # Deployment scripts
+│   ├── deploy.sh                   # Kubernetes deployment script
+│   ├── rollback.sh                 # Rollback script
+│   └── cleanup.sh                  # Cleanup script
+├── docs/                           # Documentation
+│   ├── QUICKSTART.md               # Quick start guide
+│   ├── KUBERNETES.md               # Kubernetes guide
+│   ├── CICD_SETUP.md               # CI/CD setup guide
+│   └── DEPLOYMENT_CHECKLIST.md     # Deployment checklist
+├── main.go                         # Main application entry point
+├── go.mod                          # Go module dependencies
+├── Dockerfile                      # Multi-stage Docker build
+└── README.md                       # Project documentation
 ```
 
 ## 🔌 API Endpoints
@@ -261,7 +302,7 @@ kubectl get service go-service
 ```bash
 # Update kustomization.yaml with your Docker Hub username
 cd k8s
-kustomize edit set image your-dockerhub-username/go-docker-demo:latest
+kustomize edit set image your-dockerhub-username/go_k8s_pipeline:latest
 
 # Apply with kustomize
 kubectl apply -k .
@@ -375,22 +416,9 @@ kubectl delete -f k8s/service.yaml
 Pull and run the latest image from Docker Hub:
 
 ```bash
-docker pull <your-dockerhub-username>/go-docker-demo:latest
-docker run -d -p 8080:8080 <your-dockerhub-username>/go-docker-demo:latest
+docker pull <your-dockerhub-username>/go_k8s_pipeline:latest
+docker run -d -p 8080:8080 <your-dockerhub-username>/go_k8s_pipeline:latest
 ```
-
-### CI/CD Automated Deployment
-
-The GitHub Actions workflow can automatically deploy to Kubernetes:
-
-1. Configure the `KUBECONFIG` secret in GitHub
-2. Manually trigger the workflow with `deploy_to_k8s=true`
-3. The pipeline will automatically:
-   - Build and push the Docker image
-   - Update Kubernetes manifests
-   - Deploy to your cluster
-   - Wait for rollout completion
-   - Report deployment status
 
 ## 🤝 Contributing
 
@@ -445,7 +473,11 @@ gh workflow run "Go CI/CD Pipeline"     # Manual trigger (GitHub CLI)
 |------|-------------|
 | `main.go` | Application entry point |
 | `Dockerfile` | Container image definition |
-| `.github/workflows/ci-cd.yml` | CI/CD pipeline configuration |
+| `.github/workflows/ci-cd.yml` | Main CI/CD pipeline |
+| `.github/workflows/codeql-analysis.yml` | Security scanning |
+| `.github/workflows/docker-test.yml` | Docker testing pipeline |
+| `.github/workflows/release.yml` | Release automation |
+| `.github/dependabot.yml` | Dependency updates |
 | `k8s/deployment.yaml` | Kubernetes deployment manifest |
 | `k8s/service.yaml` | Kubernetes service manifest |
 | `scripts/deploy.sh` | Deployment automation script |
