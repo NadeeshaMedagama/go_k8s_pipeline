@@ -19,6 +19,8 @@
 - [x] Branch name consistency (updated to `master`)
 - [x] Docker image name (updated to `go_k8s_pipeline`)
 - [x] Go version (updated to 1.25)
+- [x] CodeQL Action updated to v4 (v3 deprecates December 2026)
+- [x] Added proper permissions for security-events write access
 
 ## 📋 Required Setup (Before First Push)
 
