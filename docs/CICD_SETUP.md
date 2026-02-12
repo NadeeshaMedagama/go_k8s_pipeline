@@ -78,16 +78,17 @@ Then:
 
 The pipeline automatically runs on:
 
-#### 1. Push to Main Branch
+#### 1. Push to Master Branch
 ```bash
 git add .
 git commit -m "Your changes"
-git push origin main
+git push origin master
 ```
 
 This will:
 - Run tests
 - Build and push Docker image with tags: `latest`, `main-<commit-sha>`
+- **Automatically deploy to Kubernetes** (production environment)
 
 #### 2. Pull Requests
 ```bash
@@ -165,7 +166,7 @@ curl -X POST \
 
 ### Stage 2: Build and Push Job
 
-**Runs on**: Push to main, manual trigger
+**Runs on**: Push to master, manual trigger
 
 **Steps**:
 1. Checkout code
@@ -176,21 +177,28 @@ curl -X POST \
 6. Push to Docker Hub with multiple tags
 
 **Image tags created**:
-- `latest` (only on main branch)
+- `latest` (only on master branch)
 - `<branch-name>-<commit-sha>`
 - `<branch-name>`
 
 ### Stage 3: Deploy to Kubernetes Job
 
-**Runs on**: Manual trigger with `deploy_to_k8s=true`
+**Runs on**: 
+- Automatic: Push to master branch
+- Manual: workflow_dispatch with `deploy_to_k8s=true`
 
 **Steps**:
 1. Checkout code
-2. Configure kubectl with KUBECONFIG secret
-3. Update Kubernetes manifests with correct image
-4. Apply deployment and service manifests
-5. Wait for rollout to complete (5-minute timeout)
-6. Display deployment status
+2. Identify deployment trigger (automatic vs manual)
+3. Configure kubectl with KUBECONFIG secret
+4. Update Kubernetes manifests with correct image
+5. Apply deployment and service manifests
+6. Wait for rollout to complete (5-minute timeout)
+7. Display deployment status
+
+**Environment Selection**:
+- Automatic deployments: `production` (default)
+- Manual deployments: User-selected (staging or production)
 
 ## Viewing Pipeline Results
 
@@ -354,7 +362,7 @@ Configure branch protection rules:
 
 - Use semantic versioning for releases
 - Tag with commit SHA for traceability
-- Keep `latest` for main branch only
+- Keep `latest` for master branch only
 
 ### 4. Deployment Strategy
 
