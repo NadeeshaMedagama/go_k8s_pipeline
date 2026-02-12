@@ -36,7 +36,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          go test -coverprofile=coverage.out ./...
+          go test -v -race -coverprofile=coverage.out ./...
           go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage report
@@ -71,7 +71,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/go-docker-demo
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/go_k8s_pipeline
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -84,6 +84,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/go-docker-demo:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/go-docker-demo:buildcache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/go_k8s_pipeline:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/go_k8s_pipeline:buildcache,mode=max
 
