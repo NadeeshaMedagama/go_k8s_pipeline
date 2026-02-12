@@ -1,0 +1,90 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  docker-build-test:
+    name: Build and Test Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: go_k8s_pipeline:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          # Start the container
+          docker run -d --name test-container -p 8080:8080 go_k8s_pipeline:test
+          
+          # Wait for the container to be ready
+          sleep 5
+          
+          # Test the endpoint
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+          
+          if [ "$response" -eq 200 ]; then
+            echo "✓ Docker container test passed! HTTP status: $response"
+          else
+            echo "✗ Docker container test failed! HTTP status: $response"
+            docker logs test-container
+            exit 1
+          fi
+          
+          # Check response content
+          content=$(curl -s http://localhost:8080)
+          echo "Response content: $content"
+          
+          if [[ "$content" == *"Hello from Go + Docker"* ]]; then
+            echo "✓ Response content verification passed!"
+          else
+            echo "✗ Response content verification failed!"
+            exit 1
+          fi
+
+      - name: Stop and remove container
+        if: always()
+        run: |
+          docker stop test-container || true
+          docker rm test-container || true
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: go_k8s_pipeline:test
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Scan Docker image for vulnerabilities (table format)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: go_k8s_pipeline:test
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
