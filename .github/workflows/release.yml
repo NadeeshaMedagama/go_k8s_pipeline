@@ -10,6 +10,16 @@ on:
         description: 'Release version (e.g., v1.0.0)'
         required: true
         type: string
+      create_tag:
+        description: 'Create git tag for this version'
+        required: false
+        type: boolean
+        default: true
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -135,6 +145,16 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Create tag for manual release
+        if: github.event_name == 'workflow_dispatch' && inputs.create_tag == true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ steps.version.outputs.VERSION }} -m "Release ${{ steps.version.outputs.VERSION }}"
+          git push origin ${{ steps.version.outputs.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate changelog
         id: changelog
         run: |
@@ -184,5 +204,5 @@ jobs:
             ./release/go_k8s_pipeline-*
             ./release/checksums.txt
           draft: false
-          prerelease: false
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
 
