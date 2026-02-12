@@ -121,7 +121,7 @@ git add .
 git commit -m "Configure Kubernetes deployment and CI/CD pipeline"
 
 # Push to trigger CI/CD
-git push origin main
+git push origin master
 ```
 
 ### Step 7: Verify CI/CD Pipeline (3-5 minutes)
