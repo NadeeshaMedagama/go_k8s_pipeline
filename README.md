@@ -106,8 +106,8 @@ This project uses GitHub Actions for continuous integration and deployment. The 
 ### Trigger Methods
 
 #### 1. Automatic Triggers
-- **Push to main**: Automatically runs on every push to the `main` branch
-- **Pull Requests**: Automatically runs on pull requests targeting the `main` branch
+- **Push to master**: Automatically runs tests, builds Docker image, and **deploys to Kubernetes** on every push to the `master` branch
+- **Pull Requests**: Automatically runs tests on pull requests targeting the `master` branch (no deployment)
 
 #### 2. Manual Trigger (workflow_dispatch)
 To manually trigger the workflow:
@@ -117,7 +117,7 @@ To manually trigger the workflow:
 3. Select the **Go CI/CD Pipeline** workflow from the left sidebar
 4. Click the **Run workflow** dropdown button
 5. Configure the workflow:
-   - **Branch**: Select the branch to run the workflow on (default: `main`)
+   - **Branch**: Select the branch to run the workflow on (default: `master`)
    - **Environment**: Choose `staging` or `production`
    - **Deploy to Kubernetes**: Toggle `true` to deploy to your K8s cluster
 6. Click **Run workflow**
@@ -132,21 +132,23 @@ To manually trigger the workflow:
 - Generates and uploads coverage reports
 
 #### 2. **Build and Push Job**
-- Runs only on pushes to main or manual triggers
+- Runs only on pushes to master or manual triggers
 - Builds Docker image with BuildKit
 - Pushes to Docker Hub with multiple tags:
-  - `latest` (for main branch)
+  - `latest` (for master branch)
   - Branch name
   - Commit SHA
 - Uses layer caching for faster builds
 
-#### 3. **Deploy to Kubernetes Job** (Optional)
-- Runs only when manually triggered with `deploy_to_k8s=true`
+#### 3. **Deploy to Kubernetes Job**
+- Runs automatically on pushes to master branch
+- Can also be manually triggered with `deploy_to_k8s=true`
 - Configures kubectl with your cluster credentials
 - Updates Kubernetes manifests with correct image tags
 - Applies deployment and service manifests
 - Waits for deployment rollout to complete
 - Reports deployment status
+- Supports both automatic (production) and manual (staging/production) deployments
 
 ### Required Secrets
 
@@ -433,7 +435,7 @@ kubectl port-forward svc/go-service 8080:80  # Port forward
 ./scripts/cleanup.sh                    # Clean up resources
 
 # CI/CD
-git push origin main                    # Trigger pipeline
+git push origin master                    # Trigger pipeline
 gh workflow run "Go CI/CD Pipeline"     # Manual trigger (GitHub CLI)
 ```
 
